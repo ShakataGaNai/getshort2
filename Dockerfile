@@ -20,7 +20,12 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies and curl for health checks
+RUN apt-get update && apt-get install -y curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -35,6 +40,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser
 USER appuser
+
+# Define health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8000}/health/ready || exit 1
 
 # Run the application with Gunicorn
 CMD gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 2 "run:app"

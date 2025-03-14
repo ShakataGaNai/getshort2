@@ -52,6 +52,10 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(api_bp, url_prefix='/api')
     
+    # Initialize health checks and metrics
+    from app.utils.monitoring import init_health_check
+    init_health_check(app, db)
+    
     # Create database tables if they don't exist
     with app.app_context():
         db.create_all()

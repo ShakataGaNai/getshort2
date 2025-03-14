@@ -10,6 +10,8 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
 - **User Authentication**: Secure GitHub OAuth integration
 - **API Support**: REST API for URL management and analytics
 - **Containerized Deployment**: Docker and Kubernetes support
+- **Monitoring**: Prometheus metrics and health checks
+- **Observability**: Grafana dashboards for visualization
 
 ## Tech Stack
 
@@ -18,6 +20,7 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
 - **Authentication**: GitHub OAuth
 - **Analytics**: GeoIP2 for location tracking
 - **Deployment**: Docker, Kubernetes
+- **Monitoring**: Prometheus, Grafana
 
 ## Installation
 
@@ -129,51 +132,40 @@ Available tags:
    curl http://localhost:8000
    ```
 
-### Docker Compose (Alternative Setup)
+### Docker Compose with Monitoring
 
-Create a `docker-compose.yml` file:
+We provide a Docker Compose setup that includes the application, database, Prometheus for metrics collection, and Grafana for visualization:
 
-```yaml
-version: '3'
-
-services:
-  web:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - SECRET_KEY=your-secret-key
-      - GITHUB_CLIENT_ID=your-github-client-id
-      - GITHUB_CLIENT_SECRET=your-github-client-secret
-      - DB_TYPE=mysql
-      - DB_USER=getshort
-      - DB_PASSWORD=getshortpass
-      - DB_HOST=db
-      - DB_NAME=getshort
-      - PORT=8000
-    depends_on:
-      - db
-    restart: always
-
-  db:
-    image: mariadb:10.5
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=getshort
-      - MYSQL_USER=getshort
-      - MYSQL_PASSWORD=getshortpass
-    volumes:
-      - db_data:/var/lib/mysql
-    restart: always
-
-volumes:
-  db_data:
-```
-
-Then run:
 ```bash
 docker-compose up -d
 ```
+
+This will start:
+- The GetShort application on port 8000
+- MariaDB database
+- Prometheus on port 9090
+- Grafana on port 3000 (default credentials: admin/admin)
+
+Once running, you can:
+- Access the application at http://localhost:8000
+- View metrics at http://localhost:8000/metrics
+- Check health status at http://localhost:8000/health
+- Access Prometheus at http://localhost:9090
+- View Grafana dashboards at http://localhost:3000
+
+### Health Checks and Monitoring
+
+The application provides the following monitoring endpoints:
+
+- `/health`: Basic health check
+- `/health/live`: Liveness probe for Kubernetes
+- `/health/ready`: Readiness probe for Kubernetes
+- `/metrics`: Prometheus metrics endpoint
+
+Available metrics include:
+- `getshort_redirect_total`: Counter for URL redirects with status and short code labels
+- `getshort_url_operations_total`: Counter for URL operations with operation and status labels
+- `getshort_request_latency_seconds`: Histogram for request latency with endpoint labels
 
 ### Running Tests in Docker
 
@@ -284,6 +276,9 @@ kubectl describe svc getshort-service -n getshort
 
 # Get detailed information about pods
 kubectl describe pods -n getshort
+
+# Check health and readiness status
+kubectl describe pod -n getshort <pod-name> | grep -A 10 Conditions
 ```
 
 ### LoadBalancer Service (Cloud Environments)

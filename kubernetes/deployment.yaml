@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         app: getshort
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8000"
     spec:
       containers:
       - name: getshort
@@ -66,18 +70,34 @@ spec:
         - name: geoip-db
           mountPath: /app/GeoLite2-City.mmdb
           subPath: GeoLite2-City.mmdb
+        # Liveness probe - checks if the application is running
         livenessProbe:
           httpGet:
-            path: /
+            path: /health/live
             port: 8000
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Readiness probe - checks if the application is ready to receive traffic
         readinessProbe:
           httpGet:
-            path: /
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
+          successThreshold: 1
+        # Startup probe - gives the application time to start up
+        startupProbe:
+          httpGet:
+            path: /health/live
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 12  # Allow 1 minute (12 * 5s) for startup
       volumes:
       - name: geoip-db
         configMap:
