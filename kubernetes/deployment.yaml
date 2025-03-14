@@ -18,6 +18,10 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "8000"
     spec:
+      initContainers:
+      - name: wait-for-db
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z mariadb-service 3306; do echo waiting for database; sleep 2; done;']
       containers:
       - name: getshort
         image: ghcr.io/shakatagaNai/getshort2:latest
@@ -59,6 +63,8 @@ spec:
               key: github-client-secret
         - name: GEOIP_DB_PATH
           value: "/app/GeoLite2-City.mmdb"
+        - name: FLASK_APP
+          value: "run.py"
         resources:
           limits:
             memory: "256Mi"

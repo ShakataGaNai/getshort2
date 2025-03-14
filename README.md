@@ -9,9 +9,11 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
 - **Comprehensive Analytics**: Track visitor data including browser, device type, and location
 - **User Authentication**: Secure GitHub OAuth integration
 - **API Support**: REST API for URL management and analytics
+- **Health Monitoring**: Health check endpoints for container orchestration systems
+- **Metrics Collection**: Prometheus-compatible metrics for all operations
+- **Operational Dashboards**: Pre-configured Grafana dashboards
+- **Database Migrations**: Automated migrations support in containerized environments
 - **Containerized Deployment**: Docker and Kubernetes support
-- **Monitoring**: Prometheus metrics and health checks
-- **Observability**: Grafana dashboards for visualization
 
 ## Tech Stack
 
@@ -19,8 +21,9 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
 - **Database**: SQLite (development), MySQL/MariaDB (production)
 - **Authentication**: GitHub OAuth
 - **Analytics**: GeoIP2 for location tracking
-- **Deployment**: Docker, Kubernetes
 - **Monitoring**: Prometheus, Grafana
+- **Migrations**: Flask-Migrate (Alembic)
+- **Deployment**: Docker, Kubernetes
 
 ## Installation
 
@@ -153,46 +156,149 @@ Once running, you can:
 - Access Prometheus at http://localhost:9090
 - View Grafana dashboards at http://localhost:3000
 
-### Health Checks and Monitoring
+## Monitoring Features
 
-The application provides the following monitoring endpoints:
+### Health Checks
 
-- `/health`: Basic health check
-- `/health/live`: Liveness probe for Kubernetes
-- `/health/ready`: Readiness probe for Kubernetes
-- `/metrics`: Prometheus metrics endpoint
+The application provides the following health-related endpoints:
 
-Available metrics include:
-- `getshort_redirect_total`: Counter for URL redirects with status and short code labels
-- `getshort_url_operations_total`: Counter for URL operations with operation and status labels
-- `getshort_request_latency_seconds`: Histogram for request latency with endpoint labels
+- `/health`: Performs multiple health checks and returns detailed status
+- `/health/live`: Liveness probe for Kubernetes (checks if app is running)
+- `/health/ready`: Readiness probe for Kubernetes (checks if app can serve traffic)
 
-### Running Tests in Docker
+Health checks include:
+- Database connectivity verification
+- Application status verification
+- Additional dependency checks
 
-1. Create a Docker container for testing:
-   ```bash
-   docker build -t getshort-test -f Dockerfile.test .
-   ```
+These are used by container orchestration systems to determine if the application is healthy and ready to serve traffic.
 
-   Where `Dockerfile.test` is:
-   ```
-   FROM python:3.12-slim
+### Metrics
 
-   WORKDIR /app
+The application exposes metrics at the `/metrics` endpoint in Prometheus format. Key metrics include:
 
-   COPY requirements.txt .
-   RUN pip install --no-cache-dir -r requirements.txt
-   RUN pip install pytest pytest-cov
+- **Redirection Metrics**:
+  - `getshort_redirect_total`: Counter for URL redirects with `status` and `short_code` labels
+  - Tracks successful, not found, and error statuses
 
-   COPY . .
+- **URL Operation Metrics**:
+  - `getshort_url_operations_total`: Counter for all URL operations
+  - Includes `operation` (create, list, delete, analytics) and `status` labels
+  - Tracks validation errors, permission errors, and success statuses
 
-   CMD ["pytest", "-v", "--cov=app"]
-   ```
+- **Performance Metrics**:
+  - `getshort_request_latency_seconds`: Histogram for request latency
+  - Includes `endpoint` labels for detailed analysis
+  - Allows calculation of percentiles (p50, p95, p99)
 
-2. Run the tests:
-   ```bash
-   docker run --rm getshort-test
-   ```
+- **Standard Flask Metrics**:
+  - Request count, duration, exceptions
+  - Response status codes
+  - Request size and content type
+
+### Grafana Dashboards
+
+The included Grafana setup comes with a pre-configured dashboard that visualizes:
+- Redirect rates by status and short code
+- URL operation rates by operation type and status
+- Request latency percentiles by endpoint
+- Total redirect count statistics
+
+## Database Migrations
+
+GetShort uses Flask-Migrate (powered by Alembic) to handle database schema migrations in a containerized environment.
+
+### Running Migrations in Containers
+
+#### Using the Init Container Pattern (Kubernetes)
+
+In production Kubernetes environments, use an init container to run migrations before starting the main application:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: getshort
+spec:
+  # ... other deployment specs
+  template:
+    spec:
+      initContainers:
+      - name: db-migrations
+        image: ghcr.io/shakatagaNai/getshort2:latest
+        command: ['flask', 'db', 'upgrade']
+        env:
+          # ... same environment variables as main container
+      containers:
+      - name: getshort
+        image: ghcr.io/shakatagaNai/getshort2:latest
+        # ... container specs
+```
+
+#### Using a Separate Job (Kubernetes)
+
+For better control, you can create a separate Kubernetes Job for migrations:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: getshort-db-migrate
+spec:
+  template:
+    spec:
+      containers:
+      - name: getshort-migrations
+        image: ghcr.io/shakatagaNai/getshort2:latest
+        command: ['flask', 'db', 'upgrade']
+        env:
+          # ... environment variables
+      restartPolicy: Never
+  backoffLimit: 3
+```
+
+#### Docker Compose with Migrations
+
+For Docker Compose, add a migration service:
+
+```yaml
+services:
+  # ... other services
+  
+  migrations:
+    build: .
+    command: flask db upgrade
+    environment:
+      # ... same environment variables as web service
+    depends_on:
+      - db
+```
+
+Run migrations before starting the app:
+
+```bash
+docker-compose run --rm migrations
+docker-compose up -d
+```
+
+### Migration Commands Reference
+
+```bash
+# Create a new migration after model changes
+flask db migrate -m "Description of changes"
+
+# Apply migrations
+flask db upgrade
+
+# Rollback the last migration
+flask db downgrade
+
+# Show migration history
+flask db history
+
+# Show current migration
+flask db current
+```
 
 ## Kubernetes Setup and Testing
 
@@ -250,6 +356,14 @@ Available metrics include:
 5. Apply the Kubernetes manifests:
    ```bash
    kubectl apply -f kubernetes/mariadb.yaml -n getshort
+   
+   # Run migrations as a Job before deploying the application
+   kubectl apply -f kubernetes/migrations-job.yaml -n getshort
+   
+   # Wait for migrations to complete
+   kubectl wait --for=condition=complete job/getshort-migrations -n getshort --timeout=60s
+   
+   # Deploy the application
    kubectl apply -f kubernetes/deployment.yaml -n getshort
    kubectl apply -f kubernetes/service.yaml -n getshort
    ```
@@ -261,56 +375,31 @@ Available metrics include:
 
 7. Visit `http://localhost:8000` in your browser
 
-### Testing with kubectl
+### Health Check Status
 
-Check your deployment status:
+Check the health status of your pods:
+
 ```bash
-# Check if pods are running
-kubectl get pods -n getshort
-
-# Check logs from the application
-kubectl logs -n getshort deployment/getshort
-
-# Describe services
-kubectl describe svc getshort-service -n getshort
-
-# Get detailed information about pods
-kubectl describe pods -n getshort
-
-# Check health and readiness status
+# Check pod status and readiness/liveness probe results
 kubectl describe pod -n getshort <pod-name> | grep -A 10 Conditions
+
+# Check recent probe events
+kubectl get events -n getshort --field-selector involvedObject.name=<pod-name>
 ```
 
-### LoadBalancer Service (Cloud Environments)
+### Prometheus Integration
 
-For cloud environments, you can modify the service to use a LoadBalancer:
+The Kubernetes deployment is configured with Prometheus annotations to enable automatic service discovery:
 
 ```yaml
-# kubernetes/service-cloud.yaml
-apiVersion: v1
-kind: Service
 metadata:
-  name: getshort-service
-spec:
-  selector:
-    app: getshort
-  ports:
-  - port: 80
-    targetPort: 8000
-  type: LoadBalancer
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "8000"
 ```
 
-Apply it with:
-```bash
-kubectl apply -f kubernetes/service-cloud.yaml -n getshort
-```
-
-### Cleaning Up
-
-To remove all resources:
-```bash
-kubectl delete namespace getshort
-```
+This allows Prometheus instances running in your cluster to automatically discover and scrape metrics from your GetShort pods.
 
 ## CI/CD Pipeline
 
@@ -366,6 +455,7 @@ All configuration is managed through environment variables:
 | GITHUB_CLIENT_SECRET | GitHub OAuth client secret | - |
 | GEOIP_DB_PATH | Path to GeoIP database | GeoLite2-City.mmdb |
 | LOG_TO_STDOUT | Whether to log to stdout (good for containers) | false |
+| FLASK_APP | Flask application entry point (for migrations) | run.py |
 
 ## API Usage
 
@@ -397,24 +487,6 @@ GET /api/urls/{url_id}/analytics
 
 ```
 DELETE /api/urls/{url_id}
-```
-
-## Development
-
-### Database Migrations
-
-To create and apply migrations:
-
-```bash
-flask db init  # Only once
-flask db migrate -m "Initial migration"
-flask db upgrade
-```
-
-### Running Tests
-
-```bash
-pytest
 ```
 
 ## License

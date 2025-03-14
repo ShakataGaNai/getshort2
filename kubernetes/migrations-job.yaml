@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: getshort-migrations
+  labels:
+    app: getshort-migrations
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      containers:
+      - name: getshort-migrations
+        image: ghcr.io/shakatagaNai/getshort2:latest
+        command: ["flask", "db", "upgrade"]
+        env:
+        - name: FLASK_APP
+          value: "run.py"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: secret-key
+        - name: DB_TYPE
+          value: mysql
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: db-password
+        - name: DB_HOST
+          value: mariadb-service
+        - name: DB_NAME
+          value: getshort
+      restartPolicy: Never
+  backoffLimit: 3
