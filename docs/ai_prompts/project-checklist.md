@@ -2,49 +2,51 @@
 
 ## Core Application Features
 
-- [ ] Flask web framework setup
-- [ ] Database models (Users, ShortURLs, Visits)
-- [ ] Main page with explanation of URL shortener service
-- [ ] URL shortening and redirection functionality
+- [x] Flask web framework setup
+- [x] Database models (Users, ShortURLs, Visits)
+- [x] Main page with explanation of URL shortener service
+- [x] URL shortening and redirection functionality
 
 ## Authentication
 
-- [ ] GitHub OAuth integration
-- [ ] User login/logout functionality
-- [ ] User session management
+- [x] GitHub OAuth integration
+- [x] User login/logout functionality
+- [x] User session management
 
 ## URL Management
 
-- [ ] Create shortened URLs
-- [ ] Random short URL generation (A-Z, 0-9)
-- [ ] Custom short URL support
-- [ ] List all user's shortened URLs
-- [ ] Delete shortened URLs
+- [x] Create shortened URLs
+- [x] Random short URL generation (A-Z, 0-9)
+- [x] Custom short URL support
+- [x] List all user's shortened URLs
+- [x] Delete shortened URLs
 
 ## Analytics Tracking
 
-- [ ] Track URL visits
-- [ ] Browser type tracking
-- [ ] Device type tracking
-- [ ] Country/location tracking
-- [ ] Per-URL analytics view
-- [ ] User-wide analytics view
+- [x] Track URL visits
+- [x] Browser type tracking
+- [x] Device type tracking
+- [x] Country/location tracking
+- [x] Per-URL analytics view
+- [x] User-wide analytics view
 
 ## API Features
 
-- [ ] Get all URLs for current user
-- [ ] Create new shortened URL
-- [ ] Get analytics for specific URL
+- [x] Get all URLs for current user
+- [x] Create new shortened URL
+- [x] Get analytics for specific URL
+- [x] Delete URLs
 
 ## Deployment
 
-- [ ] Dockerfile
-- [ ] Kubernetes YAML manifest
-- [ ] Support for SQLite/MariaDB switching
+- [x] Dockerfile
+- [x] Kubernetes YAML manifest
+- [x] Support for SQLite/MariaDB switching
+- [x] GitHub Actions CI/CD pipeline
 
 ## UI Improvements
 
-- [ ] Improved analytics visualizations
-- [ ] Better mobile responsiveness
-- [ ] Add copy-to-clipboard functionality
-- [ ] QR code generation for short URLs
+- [x] Improved analytics visualizations
+- [x] Better mobile responsiveness
+- [x] Add copy-to-clipboard functionality
+- [x] QR code generation for short URLs
