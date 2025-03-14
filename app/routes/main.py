@@ -24,11 +24,14 @@ def redirect_to_url(short_code):
         # Track this visit
         track_visit(short_url)
         
+        # Get the target URL with modifiers applied if needed
+        target_url = short_url.get_redirect_url()
+        
         # Log successful redirect
         redirect_counter.labels(status='success', short_code=short_code).inc()
         
         # Redirect to the target URL
-        return redirect(short_url.target_url)
+        return redirect(target_url)
     except Exception as e:
         current_app.logger.error(f"Error redirecting {short_code}: {str(e)}")
         redirect_counter.labels(status='error', short_code=short_code).inc()

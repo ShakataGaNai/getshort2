@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Short URL - GetShort{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">Edit Short URL</h1>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('admin.edit_url', url_id=url.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Short URL</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ request.host_url }}{{ url.short_code }}" readonly>
+                            <button class="btn btn-outline-secondary copy-btn" 
+                                    data-clipboard-text="{{ request.host_url }}{{ url.short_code }}" type="button">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Target URL</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ url.target_url }}" readonly>
+                            <a href="{{ url.target_url }}" class="btn btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4 form-check">
+                        <input type="checkbox" class="form-check-input" id="apply_modifiers" name="apply_modifiers" 
+                               {% if url.apply_modifiers %}checked{% endif %}>
+                        <label class="form-check-label" for="apply_modifiers">Apply domain modifiers</label>
+                        <div class="form-text">
+                            If checked, domain-specific modifiers (like referral codes) will be applied to the URL when redirecting
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4 shadow">
+            <div class="card-header bg-info text-white">
+                <h2 class="h4 mb-0">Preview</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Original Target URL:</label>
+                    <input type="text" class="form-control" value="{{ url.target_url }}" readonly>
+                </div>
+                
+                <div id="modifiedUrlContainer" {% if not url.apply_modifiers %}style="display: none;"{% endif %}>
+                    <label class="form-label">Target URL with Modifiers Applied:</label>
+                    <input type="text" class="form-control" value="{{ url.get_redirect_url() }}" readonly>
+                </div>
+                
+                <div id="noModifiersMessage" {% if url.apply_modifiers %}style="display: none;"{% endif %}>
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle"></i> Domain modifiers are currently disabled for this URL.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.8/dist/clipboard.min.js"></script>
+<script>
+    // Initialize clipboard.js for copy buttons
+    const clipboard = new ClipboardJS('.copy-btn');
+    
+    clipboard.on('success', function(e) {
+        const button = e.trigger;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(function() {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+        
+        e.clearSelection();
+    });
+    
+    // Toggle modified URL preview based on checkbox
+    const applyModifiersCheckbox = document.getElementById('apply_modifiers');
+    const modifiedUrlContainer = document.getElementById('modifiedUrlContainer');
+    const noModifiersMessage = document.getElementById('noModifiersMessage');
+    
+    applyModifiersCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            modifiedUrlContainer.style.display = 'block';
+            noModifiersMessage.style.display = 'none';
+        } else {
+            modifiedUrlContainer.style.display = 'none';
+            noModifiersMessage.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

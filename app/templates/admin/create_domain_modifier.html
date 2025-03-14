@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Domain Modifier - GetShort{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">Create Domain Modifier</h1>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    Domain modifiers allow you to automatically append query parameters to URLs from specific domains.
+                    For example, you can add a referral code to all Amazon.com links.
+                </p>
+                
+                <form method="post" action="{{ url_for('admin.create_domain_modifier') }}" id="domainModifierForm">
+                    <div class="mb-3">
+                        <label for="domain" class="form-label">Domain</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-globe"></i></span>
+                            <input type="text" class="form-control" id="domain" name="domain" 
+                                  placeholder="example.com" required>
+                        </div>
+                        <div class="form-text">Enter the domain name without http:// or www. (e.g., amazon.com)</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="include_subdomains" name="include_subdomains">
+                        <label class="form-check-label" for="include_subdomains">Include subdomains</label>
+                        <div class="form-text">
+                            If checked, the modifier will also apply to subdomains (e.g., smile.amazon.com, aws.amazon.com)
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Query Parameters</label>
+                        <div id="query-params-container">
+                            <div class="row mb-2 query-param-row">
+                                <div class="col-5">
+                                    <input type="text" class="form-control" name="param_key[]" placeholder="Parameter (e.g., tag)" required>
+                                </div>
+                                <div class="col-5">
+                                    <input type="text" class="form-control" name="param_value[]" placeholder="Value (e.g., myrefcode)" required>
+                                </div>
+                                <div class="col-2">
+                                    <button type="button" class="btn btn-danger remove-param" style="display: none;">
+                                        <i class="bi bi-dash-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="add-param">
+                            <i class="bi bi-plus-circle"></i> Add Parameter
+                        </button>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.domain_modifiers') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Create Modifier
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4 shadow">
+            <div class="card-header bg-info text-white">
+                <h2 class="h4 mb-0">How It Works</h2>
+            </div>
+            <div class="card-body">
+                <p>When a user clicks on a shortened URL with domain modifiers enabled:</p>
+                <ol>
+                    <li>GetShort checks if the target URL's domain matches any of your domain modifiers</li>
+                    <li>If a match is found, the specified query parameters are added to the URL</li>
+                    <li>The user is redirected to the modified URL</li>
+                </ol>
+                <p>For example, if you have a domain modifier for "amazon.com" with parameter "tag=myrefcode":</p>
+                <ul>
+                    <li>Original URL: <code>https://amazon.com/product/12345</code></li>
+                    <li>Modified URL: <code>https://amazon.com/product/12345?tag=myrefcode</code></li>
+                </ul>
+                <p>If the URL already has query parameters, they are preserved:</p>
+                <ul>
+                    <li>Original URL: <code>https://amazon.com/product/12345?theme=dark</code></li>
+                    <li>Modified URL: <code>https://amazon.com/product/12345?theme=dark&tag=myrefcode</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('query-params-container');
+        const addBtn = document.getElementById('add-param');
+        
+        // Add parameter row
+        addBtn.addEventListener('click', function() {
+            const newRow = document.createElement('div');
+            newRow.className = 'row mb-2 query-param-row';
+            newRow.innerHTML = `
+                <div class="col-5">
+                    <input type="text" class="form-control" name="param_key[]" placeholder="Parameter (e.g., tag)" required>
+                </div>
+                <div class="col-5">
+                    <input type="text" class="form-control" name="param_value[]" placeholder="Value (e.g., myrefcode)" required>
+                </div>
+                <div class="col-2">
+                    <button type="button" class="btn btn-danger remove-param">
+                        <i class="bi bi-dash-circle"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+            
+            // Show remove button on first row if we now have multiple rows
+            if (container.querySelectorAll('.query-param-row').length > 1) {
+                const firstRowBtn = container.querySelector('.query-param-row .remove-param');
+                if (firstRowBtn) {
+                    firstRowBtn.style.display = 'block';
+                }
+            }
+            
+            // Add event listener to new remove button
+            newRow.querySelector('.remove-param').addEventListener('click', function() {
+                container.removeChild(newRow);
+                
+                // Hide remove button on first row if it's the only one left
+                if (container.querySelectorAll('.query-param-row').length === 1) {
+                    const firstRowBtn = container.querySelector('.query-param-row .remove-param');
+                    if (firstRowBtn) {
+                        firstRowBtn.style.display = 'none';
+                    }
+                }
+            });
+        });
+        
+        // Form validation
+        document.getElementById('domainModifierForm').addEventListener('submit', function(event) {
+            const domain = document.getElementById('domain').value.trim();
+            
+            // Basic domain validation
+            if (!domain || !domain.includes('.')) {
+                event.preventDefault();
+                alert('Please enter a valid domain name (e.g., amazon.com)');
+                return;
+            }
+            
+            // Ensure at least one parameter is provided
+            const keys = document.querySelectorAll('input[name="param_key[]"]');
+            const values = document.querySelectorAll('input[name="param_value[]"]');
+            
+            let hasValidParam = false;
+            for (let i = 0; i < keys.length; i++) {
+                if (keys[i].value.trim() && values[i] && values[i].value.trim()) {
+                    hasValidParam = true;
+                    break;
+                }
+            }
+            
+            if (!hasValidParam) {
+                event.preventDefault();
+                alert('Please provide at least one valid query parameter and value');
+            }
+        });
+    });
+</script>
+{% endblock %}

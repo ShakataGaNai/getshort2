@@ -2,8 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app import db
-from app.models import ShortURL, Visit
+from app.models import ShortURL, Visit, DomainModifier
 import validators
+import json
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -32,6 +33,7 @@ def create_url():
     if request.method == 'POST':
         target_url = request.form.get('target_url')
         custom_code = request.form.get('custom_code') or None
+        apply_modifiers = request.form.get('apply_modifiers', 'on') == 'on'
         
         # Validate target URL
         if not validators.url(target_url):
@@ -42,7 +44,8 @@ def create_url():
         short_url, error = ShortURL.create_with_unique_code(
             target_url=target_url,
             user_id=current_user.id,
-            custom_code=custom_code
+            custom_code=custom_code,
+            apply_modifiers=apply_modifiers
         )
         
         if error:
@@ -53,6 +56,28 @@ def create_url():
         return redirect(url_for('admin.dashboard'))
     
     return render_template('admin/create_url.html')
+
+@admin_bp.route('/edit/<int:url_id>', methods=['GET', 'POST'])
+@login_required
+def edit_url(url_id):
+    """Edit a shortened URL"""
+    short_url = ShortURL.query.get_or_404(url_id)
+    
+    # Make sure the URL belongs to the current user
+    if short_url.user_id != current_user.id:
+        flash('You do not have permission to edit this URL', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
+    if request.method == 'POST':
+        apply_modifiers = request.form.get('apply_modifiers', 'off') == 'on'
+        
+        short_url.apply_modifiers = apply_modifiers
+        db.session.commit()
+        
+        flash('URL updated successfully', 'success')
+        return redirect(url_for('admin.dashboard'))
+    
+    return render_template('admin/edit_url.html', url=short_url)
 
 @admin_bp.route('/delete/<int:url_id>', methods=['POST'])
 @login_required
@@ -142,3 +167,167 @@ def user_analytics():
                            device_stats=device_stats,
                            country_stats=country_stats,
                            top_urls=top_urls)
+
+# Domain Modifiers Management
+@admin_bp.route('/domain-modifiers')
+@login_required
+def domain_modifiers():
+    """View all domain modifiers"""
+    modifiers = DomainModifier.query.filter_by(user_id=current_user.id).order_by(DomainModifier.created_at.desc()).all()
+    return render_template('admin/domain_modifiers.html', modifiers=modifiers)
+
+@admin_bp.route('/domain-modifiers/create', methods=['GET', 'POST'])
+@login_required
+def create_domain_modifier():
+    """Create a new domain modifier"""
+    if request.method == 'POST':
+        domain = request.form.get('domain', '').lower()
+        include_subdomains = request.form.get('include_subdomains', 'off') == 'on'
+        
+        # Get all query parameters
+        query_params = {}
+        param_keys = request.form.getlist('param_key')
+        param_values = request.form.getlist('param_value')
+        
+        for i in range(len(param_keys)):
+            if i < len(param_values) and param_keys[i].strip():
+                query_params[param_keys[i].strip()] = param_values[i].strip()
+        
+        # Validate domain
+        if not domain or '.' not in domain:
+            flash('Invalid domain name', 'error')
+            return redirect(url_for('admin.create_domain_modifier'))
+        
+        # Validate query params
+        if not query_params:
+            flash('You must specify at least one query parameter', 'error')
+            return redirect(url_for('admin.create_domain_modifier'))
+        
+        # Create new domain modifier
+        modifier = DomainModifier(
+            domain=domain,
+            include_subdomains=include_subdomains,
+            query_params=json.dumps(query_params),
+            user_id=current_user.id,
+            active=True
+        )
+        
+        db.session.add(modifier)
+        db.session.commit()
+        
+        flash('Domain modifier created successfully', 'success')
+        return redirect(url_for('admin.domain_modifiers'))
+    
+    return render_template('admin/create_domain_modifier.html')
+
+@admin_bp.route('/domain-modifiers/edit/<int:modifier_id>', methods=['GET', 'POST'])
+@login_required
+def edit_domain_modifier(modifier_id):
+    """Edit a domain modifier"""
+    modifier = DomainModifier.query.get_or_404(modifier_id)
+    
+    # Make sure the modifier belongs to the current user
+    if modifier.user_id != current_user.id:
+        flash('You do not have permission to edit this domain modifier', 'error')
+        return redirect(url_for('admin.domain_modifiers'))
+    
+    if request.method == 'POST':
+        domain = request.form.get('domain', '').lower()
+        include_subdomains = request.form.get('include_subdomains', 'off') == 'on'
+        active = request.form.get('active', 'off') == 'on'
+        
+        # Get all query parameters
+        query_params = {}
+        param_keys = request.form.getlist('param_key')
+        param_values = request.form.getlist('param_value')
+        
+        for i in range(len(param_keys)):
+            if i < len(param_values) and param_keys[i].strip():
+                query_params[param_keys[i].strip()] = param_values[i].strip()
+        
+        # Validate domain
+        if not domain or '.' not in domain:
+            flash('Invalid domain name', 'error')
+            return redirect(url_for('admin.edit_domain_modifier', modifier_id=modifier_id))
+        
+        # Validate query params
+        if not query_params:
+            flash('You must specify at least one query parameter', 'error')
+            return redirect(url_for('admin.edit_domain_modifier', modifier_id=modifier_id))
+        
+        # Update domain modifier
+        modifier.domain = domain
+        modifier.include_subdomains = include_subdomains
+        modifier.query_params = json.dumps(query_params)
+        modifier.active = active
+        
+        db.session.commit()
+        
+        flash('Domain modifier updated successfully', 'success')
+        return redirect(url_for('admin.domain_modifiers'))
+    
+    # Parse query parameters for template
+    query_params = json.loads(modifier.query_params)
+    
+    return render_template('admin/edit_domain_modifier.html', 
+                          modifier=modifier, 
+                          query_params=query_params)
+
+@admin_bp.route('/domain-modifiers/delete/<int:modifier_id>', methods=['POST'])
+@login_required
+def delete_domain_modifier(modifier_id):
+    """Delete a domain modifier"""
+    modifier = DomainModifier.query.get_or_404(modifier_id)
+    
+    # Make sure the modifier belongs to the current user
+    if modifier.user_id != current_user.id:
+        flash('You do not have permission to delete this domain modifier', 'error')
+        return redirect(url_for('admin.domain_modifiers'))
+    
+    db.session.delete(modifier)
+    db.session.commit()
+    
+    flash('Domain modifier deleted successfully', 'success')
+    return redirect(url_for('admin.domain_modifiers'))
+
+@admin_bp.route('/domain-modifiers/test', methods=['GET', 'POST'])
+@login_required
+def test_domain_modifier():
+    """Test a domain modifier without creating it"""
+    if request.method == 'POST':
+        url = request.form.get('url')
+        
+        # Get all query parameters
+        query_params = {}
+        param_keys = request.form.getlist('param_key')
+        param_values = request.form.getlist('param_value')
+        
+        for i in range(len(param_keys)):
+            if i < len(param_values) and param_keys[i].strip():
+                query_params[param_keys[i].strip()] = param_values[i].strip()
+        
+        # Validate URL
+        if not validators.url(url):
+            flash('Invalid URL. Please enter a valid URL including http:// or https://', 'error')
+            return redirect(url_for('admin.test_domain_modifier'))
+        
+        # Simulate domain modifier
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        
+        parsed_url = urlparse(url)
+        query_dict = parse_qs(parsed_url.query)
+        
+        for key, value in query_params.items():
+            query_dict[key] = [value]
+        
+        new_query = urlencode(query_dict, doseq=True)
+        parsed_url = parsed_url._replace(query=new_query)
+        
+        modified_url = urlunparse(parsed_url)
+        
+        return render_template('admin/test_domain_modifier.html', 
+                              original_url=url, 
+                              modified_url=modified_url,
+                              query_params=query_params)
+    
+    return render_template('admin/test_domain_modifier.html')

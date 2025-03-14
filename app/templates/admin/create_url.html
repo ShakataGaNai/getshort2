@@ -21,7 +21,7 @@
                         <div class="form-text">Enter the full URL you want to shorten (including http:// or https://)</div>
                     </div>
                     
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="custom_code" class="form-label">Custom Short Code (Optional)</label>
                         <div class="input-group">
                             <span class="input-group-text">{{ request.host_url }}</span>
@@ -31,6 +31,14 @@
                         <div class="form-text">
                             Leave blank to generate a random short code. If provided, your URL will be 
                             {{ request.host_url }}<span class="text-primary" id="preview">custom-name</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4 form-check">
+                        <input type="checkbox" class="form-check-input" id="apply_modifiers" name="apply_modifiers" checked>
+                        <label class="form-check-label" for="apply_modifiers">Apply domain modifiers</label>
+                        <div class="form-text">
+                            If checked, domain-specific modifiers (like referral codes) will be applied to the URL when redirecting
                         </div>
                     </div>
                     
@@ -51,7 +59,7 @@
                 <p>You can also create short URLs programmatically using our API:</p>
                 <pre><code>curl -X POST {{ request.host_url }}api/urls \
      -H "Content-Type: application/json" \
-     -d '{"target_url": "https://example.com", "custom_code": "optional-custom-code"}'</code></pre>
+     -d '{"target_url": "https://example.com", "custom_code": "optional-custom-code", "apply_modifiers": true}'</code></pre>
             </div>
         </div>
     </div>

@@ -14,6 +14,7 @@ class ShortURL(db.Model):
     target_url = db.Column(db.String(2048), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    apply_modifiers = db.Column(db.Boolean, default=True)
     
     # Relationships
     visits = db.relationship('Visit', backref='short_url', lazy=True, cascade='all, delete-orphan')
@@ -21,8 +22,15 @@ class ShortURL(db.Model):
     def __repr__(self):
         return f'<ShortURL {self.short_code}>'
     
+    def get_redirect_url(self):
+        """Get the URL to redirect to, applying domain modifiers if enabled"""
+        if self.apply_modifiers:
+            from app.models.domain_modifier import DomainModifier
+            return DomainModifier.apply_modifiers(self.target_url)
+        return self.target_url
+    
     @classmethod
-    def create_with_unique_code(cls, target_url, user_id, custom_code=None):
+    def create_with_unique_code(cls, target_url, user_id, custom_code=None, apply_modifiers=True):
         """Create a new short URL with either a custom code or a unique generated one"""
         if custom_code:
             # Check if custom code already exists
@@ -39,7 +47,12 @@ class ShortURL(db.Model):
                     break
         
         # Create new short URL
-        short_url = cls(short_code=short_code, target_url=target_url, user_id=user_id)
+        short_url = cls(
+            short_code=short_code, 
+            target_url=target_url, 
+            user_id=user_id,
+            apply_modifiers=apply_modifiers
+        )
         db.session.add(short_url)
         db.session.commit()
         

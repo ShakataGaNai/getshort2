@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block title %}Test Domain Modifier - GetShort{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">Test Domain Modifier</h1>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    Use this tool to test how domain modifiers would affect a URL without creating a modifier.
+                </p>
+                
+                <form method="post" action="{{ url_for('admin.test_domain_modifier') }}" id="testModifierForm">
+                    <div class="mb-3">
+                        <label for="url" class="form-label">URL to Test</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                            <input type="url" class="form-control" id="url" name="url" 
+                                  placeholder="https://example.com/product?param=value" required
+                                  {% if original_url %}value="{{ original_url }}"{% endif %}>
+                        </div>
+                        <div class="form-text">Enter the complete URL including http:// or https://</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Query Parameters to Add</label>
+                        <div id="query-params-container">
+                            {% if query_params %}
+                                {% for key, value in query_params.items() %}
+                                    <div class="row mb-2 query-param-row">
+                                        <div class="col-5">
+                                            <input type="text" class="form-control" name="param_key[]" value="{{ key }}" required>
+                                        </div>
+                                        <div class="col-5">
+                                            <input type="text" class="form-control" name="param_value[]" value="{{ value }}" required>
+                                        </div>
+                                        <div class="col-2">
+                                            <button type="button" class="btn btn-danger remove-param" {% if loop.index == 1 and loop.length == 1 %}style="display: none;"{% endif %}>
+                                                <i class="bi bi-dash-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="row mb-2 query-param-row">
+                                    <div class="col-5">
+                                        <input type="text" class="form-control" name="param_key[]" placeholder="Parameter (e.g., tag)" required>
+                                    </div>
+                                    <div class="col-5">
+                                        <input type="text" class="form-control" name="param_value[]" placeholder="Value (e.g., myrefcode)" required>
+                                    </div>
+                                    <div class="col-2">
+                                        <button type="button" class="btn btn-danger remove-param" style="display: none;">
+                                            <i class="bi bi-dash-circle"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="add-param">
+                            <i class="bi bi-plus-circle"></i> Add Parameter
+                        </button>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.domain_modifiers') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Modifiers
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2-circle"></i> Test Modifier
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if modified_url %}
+            <div class="card mt-4 shadow">
+                <div class="card-header bg-success text-white">
+                    <h2 class="h4 mb-0">Test Results</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Original URL:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ original_url }}" readonly>
+                            <a href="{{ original_url }}" class="btn btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Modified URL:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ modified_url }}" readonly>
+                            <a href="{{ modified_url }}" class="btn btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                            <button class="btn btn-outline-secondary copy-btn" 
+                                    data-clipboard-text="{{ modified_url }}" type="button">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Parameters Added:</strong>
+                        {% for key, value in query_params.items() %}
+                            <span class="badge bg-info text-dark">{{ key }}={{ value }}</span>
+                        {% endfor %}
+                    </div>
+                    
+                    <p class="mt-3">
+                        <a href="{{ url_for('admin.create_domain_modifier') }}" class="btn btn-primary">
+                            <i class="bi bi-plus-lg"></i> Create Domain Modifier
+                        </a>
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.8/dist/clipboard.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize clipboard.js for copy buttons
+        const clipboard = new ClipboardJS('.copy-btn');
+        
+        clipboard.on('success', function(e) {
+            const button = e.trigger;
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('btn-success');
+            
+            setTimeout(function() {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-secondary');
+            }, 2000);
+            
+            e.clearSelection();
+        });
+    
+        const container = document.getElementById('query-params-container');
+        const addBtn = document.getElementById('add-param');
+        
+        // Add parameter row
+        addBtn.addEventListener('click', function() {
+            const newRow = document.createElement('div');
+            newRow.className = 'row mb-2 query-param-row';
+            newRow.innerHTML = `
+                <div class="col-5">
+                    <input type="text" class="form-control" name="param_key[]" placeholder="Parameter (e.g., tag)" required>
+                </div>
+                <div class="col-5">
+                    <input type="text" class="form-control" name="param_value[]" placeholder="Value (e.g., myrefcode)" required>
+                </div>
+                <div class="col-2">
+                    <button type="button" class="btn btn-danger remove-param">
+                        <i class="bi bi-dash-circle"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+            
+            // Show remove button on first row if we now have multiple rows
+            if (container.querySelectorAll('.query-param-row').length > 1) {
+                const firstRowBtn = container.querySelector('.query-param-row .remove-param');
+                if (firstRowBtn) {
+                    firstRowBtn.style.display = 'block';
+                }
+            }
+            
+            // Add event listener to new remove button
+            newRow.querySelector('.remove-param').addEventListener('click', function() {
+                container.removeChild(newRow);
+                
+                // Hide remove button on first row if it's the only one left
+                if (container.querySelectorAll('.query-param-row').length === 1) {
+                    const firstRowBtn = container.querySelector('.query-param-row .remove-param');
+                    if (firstRowBtn) {
+                        firstRowBtn.style.display = 'none';
+                    }
+                }
+            });
+        });
+        
+        // Add event listeners to existing remove buttons
+        document.querySelectorAll('.remove-param').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('.query-param-row');
+                container.removeChild(row);
+                
+                // Hide remove button on first row if it's the only one left
+                if (container.querySelectorAll('.query-param-row').length === 1) {
+                    const firstRowBtn = container.querySelector('.query-param-row .remove-param');
+                    if (firstRowBtn) {
+                        firstRowBtn.style.display = 'none';
+                    }
+                }
+            });
+        });
+        
+        // Form validation
+        document.getElementById('testModifierForm').addEventListener('submit', function(event) {
+            const url = document.getElementById('url').value.trim();
+            
+            // Ensure the URL is valid
+            if (!url || !url.startsWith('http')) {
+                event.preventDefault();
+                alert('Please enter a valid URL including http:// or https://');
+                return;
+            }
+            
+            // Ensure at least one parameter is provided
+            const keys = document.querySelectorAll('input[name="param_key[]"]');
+            const values = document.querySelectorAll('input[name="param_value[]"]');
+            
+            let hasValidParam = false;
+            for (let i = 0; i < keys.length; i++) {
+                if (keys[i].value.trim() && values[i] && values[i].value.trim()) {
+                    hasValidParam = true;
+                    break;
+                }
+            }
+            
+            if (!hasValidParam) {
+                event.preventDefault();
+                alert('Please provide at least one valid query parameter and value');
+            }
+        });
+    });
+</script>
+{% endblock %}

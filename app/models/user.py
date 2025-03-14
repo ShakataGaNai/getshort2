@@ -12,6 +12,7 @@ class User(UserMixin, db.Model):
     
     # Relationships
     short_urls = db.relationship('ShortURL', backref='creator', lazy=True)
+    domain_modifiers = db.relationship('DomainModifier', backref='creator', lazy=True)
     
     def __repr__(self):
         return f'<User {self.username}>'
