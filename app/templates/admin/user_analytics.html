@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}User Analytics - GetShort{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Your Analytics Dashboard</h1>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Browser Stats</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="browserChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Device Type</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="deviceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Country Distribution</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="countryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Top Performing URLs</h3>
+            </div>
+            <div class="card-body">
+                {% if top_urls %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Short URL</th>
+                                    <th>Target URL</th>
+                                    <th>Visits</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for index, (url, visit_count) in enumerate(top_urls) %}
+                                    <tr>
+                                        <td>{{ index + 1 }}</td>
+                                        <td>
+                                            <a href="{{ url_for('main.redirect_to_url', short_code=url.short_code) }}" target="_blank">
+                                                {{ request.host_url }}{{ url.short_code }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 300px;">
+                                                <a href="{{ url.target_url }}" target="_blank">
+                                                    {{ url.target_url }}
+                                                </a>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">{{ visit_count }}</span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('admin.url_analytics', url_id=url.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-bar-chart"></i> Detailed Analytics
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> No visits recorded yet for your URLs.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Chart data
+    const browserData = {
+        labels: [{% for browser, count in browser_stats %}'{{ browser }}',{% endfor %}],
+        datasets: [{
+            label: 'Browsers',
+            data: [{% for browser, count in browser_stats %}{{ count }},{% endfor %}],
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+    
+    const deviceData = {
+        labels: [{% for device, count in device_stats %}'{{ device|capitalize }}',{% endfor %}],
+        datasets: [{
+            label: 'Devices',
+            data: [{% for device, count in device_stats %}{{ count }},{% endfor %}],
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)'
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+    
+    const countryData = {
+        labels: [{% for country, count in country_stats %}{% if country %}'{{ country }}',{% else %}'Unknown',{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Countries',
+            data: [{% for country, count in country_stats %}{{ count }},{% endfor %}],
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)',
+                'rgba(201, 203, 207, 0.6)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(201, 203, 207, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+
+    // Chart options
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    };
+
+    // Create charts
+    window.addEventListener('load', function() {
+        const browserCtx = document.getElementById('browserChart').getContext('2d');
+        new Chart(browserCtx, {
+            type: 'pie',
+            data: browserData,
+            options: options
+        });
+        
+        const deviceCtx = document.getElementById('deviceChart').getContext('2d');
+        new Chart(deviceCtx, {
+            type: 'pie',
+            data: deviceData,
+            options: options
+        });
+        
+        const countryCtx = document.getElementById('countryChart').getContext('2d');
+        new Chart(countryCtx, {
+            type: 'bar',
+            data: countryData,
+            options: {
+                ...options,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

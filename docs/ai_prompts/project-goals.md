@@ -1,0 +1,7 @@
+We are going to write a uri shortener in python, from scratch. We want to use flask for the web framework and mysql/mariadb for the database. By default any url is assumed to be a shortened target to try, except for /admin where we are going to put all of the user interface. the root page should just be a simple welcome page explaining this is a url shortener.
+
+The admin function should use auth/oide for login, we'll integrate it into github applications. In admin we should be able to see all of our shortened url's, and create new ones. By default the application should suggest a short URL, A-Z and 0- 9 only, case sensitive. But the user should be allowed to override and create a shortened url with any name as long as it's not already in use.
+
+We want to track all click throughs of a shortened URL. So we can breakdown and analyze them by browser type, device type, visitor country and possibly others. Either on a URL-by-URL basis, or all URL's belonging to a specific user.
+
+Remember to make code modular, easy to understand. Provide relevant comments but do not be too verbose. Use modules and 3rd party libraries where it makes sense. Also include a dockerfile and Kubernetes yaml manifest for running the application. Support sallite for testing when full mariadb is not available.

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: getshort
+  labels:
+    app: getshort
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: getshort
+  template:
+    metadata:
+      labels:
+        app: getshort
+    spec:
+      containers:
+      - name: getshort
+        image: ghcr.io/shakatagaNai/getshort2:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PORT
+          value: "8000"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: secret-key
+        - name: DB_TYPE
+          value: mysql
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: db-password
+        - name: DB_HOST
+          value: mariadb-service
+        - name: DB_NAME
+          value: getshort
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: github-client-id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: getshort-secrets
+              key: github-client-secret
+        - name: GEOIP_DB_PATH
+          value: "/app/GeoLite2-City.mmdb"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: geoip-db
+          mountPath: /app/GeoLite2-City.mmdb
+          subPath: GeoLite2-City.mmdb
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: geoip-db
+        configMap:
+          name: geoip-db

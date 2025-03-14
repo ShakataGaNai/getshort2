@@ -1,0 +1,10 @@
+flask==2.2.3
+flask-sqlalchemy==3.0.3
+flask-migrate==4.0.4
+flask-login==0.6.2
+pymysql==1.0.2
+user-agents==2.2.0
+geoip2==4.6.0
+validators==0.20.0
+python-dotenv==1.0.0
+gunicorn==20.1.0

@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+
+{% block title %}URL Analytics - GetShort{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Analytics for Short URL</h1>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h2 class="h5 mb-0">URL Details</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Short URL</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" value="{{ request.host_url }}{{ url.short_code }}" readonly>
+                                <button class="btn btn-outline-secondary copy-btn" 
+                                        data-clipboard-text="{{ request.host_url }}{{ url.short_code }}">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label">Target URL</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" value="{{ url.target_url }}" readonly>
+                                <a href="{{ url.target_url }}" class="btn btn-outline-primary" target="_blank">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Created At</label>
+                            <input type="text" class="form-control" value="{{ url.created_at.strftime('%Y-%m-%d %H:%M') }}" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Total Visits</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-primary text-white">
+                                    <i class="bi bi-eye"></i>
+                                </span>
+                                <input type="text" class="form-control fw-bold" value="{{ visits|length }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">QR Code</label>
+                            <button class="btn btn-outline-secondary form-control qr-btn" 
+                                    data-url="{{ request.host_url }}{{ url.short_code }}">
+                                <i class="bi bi-qr-code"></i> Generate QR Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Browser Stats</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="browserChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Device Type</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="deviceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Country Distribution</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="countryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h3 class="h5 mb-0">Visit Details</h3>
+            </div>
+            <div class="card-body">
+                {% if visits %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Browser</th>
+                                    <th>Device</th>
+                                    <th>Operating System</th>
+                                    <th>Location</th>
+                                    <th>Referrer</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for visit in visits %}
+                                    <tr>
+                                        <td>{{ visit.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                        <td>{{ visit.browser }} {{ visit.browser_version }}</td>
+                                        <td>{{ visit.device_type|capitalize }}</td>
+                                        <td>{{ visit.operating_system }}</td>
+                                        <td>
+                                            {% if visit.country_name %}
+                                                {{ visit.country_name }}
+                                                {% if visit.city %}
+                                                    ({{ visit.city }})
+                                                {% endif %}
+                                            {% else %}
+                                                Unknown
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if visit.referrer %}
+                                                <span class="text-truncate d-inline-block" style="max-width: 200px;">
+                                                    {{ visit.referrer }}
+                                                </span>
+                                            {% else %}
+                                                Direct
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> No visits recorded yet for this URL.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">QR Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qrcode"></div>
+                <p class="mt-3" id="qrCodeUrl"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="downloadQrCode">Download QR Code</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.8/dist/clipboard.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode.js@1.0.0/qrcode.min.js"></script>
+<script>
+    // Initialize clipboard.js for copy buttons
+    const clipboard = new ClipboardJS('.copy-btn');
+    
+    clipboard.on('success', function(e) {
+        const button = e.trigger;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check"></i>';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(function() {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+        
+        e.clearSelection();
+    });
+    
+    // Chart data
+    const browserData = {
+        labels: [{% for browser, count in browser_stats %}'{{ browser }}',{% endfor %}],
+        datasets: [{
+            label: 'Browsers',
+            data: [{% for browser, count in browser_stats %}{{ count }},{% endfor %}],
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+    
+    const deviceData = {
+        labels: [{% for device, count in device_stats %}'{{ device|capitalize }}',{% endfor %}],
+        datasets: [{
+            label: 'Devices',
+            data: [{% for device, count in device_stats %}{{ count }},{% endfor %}],
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)'
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+    
+    const countryData = {
+        labels: [{% for country, count in country_stats %}{% if country %}'{{ country }}',{% else %}'Unknown',{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Countries',
+            data: [{% for country, count in country_stats %}{{ count }},{% endfor %}],
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)',
+                'rgba(201, 203, 207, 0.6)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(201, 203, 207, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+
+    // Chart options
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    };
+
+    // Create charts
+    window.addEventListener('load', function() {
+        const browserCtx = document.getElementById('browserChart').getContext('2d');
+        new Chart(browserCtx, {
+            type: 'pie',
+            data: browserData,
+            options: options
+        });
+        
+        const deviceCtx = document.getElementById('deviceChart').getContext('2d');
+        new Chart(deviceCtx, {
+            type: 'pie',
+            data: deviceData,
+            options: options
+        });
+        
+        const countryCtx = document.getElementById('countryChart').getContext('2d');
+        new Chart(countryCtx, {
+            type: 'pie',
+            data: countryData,
+            options: options
+        });
+    });
+    
+    // QR Code generation
+    const qrBtns = document.querySelectorAll('.qr-btn');
+    const qrCodeModal = document.getElementById('qrCodeModal');
+    const qrCodeContainer = document.getElementById('qrcode');
+    const qrCodeUrl = document.getElementById('qrCodeUrl');
+    const downloadQrBtn = document.getElementById('downloadQrCode');
+    
+    qrBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            qrCodeContainer.innerHTML = '';
+            qrCodeUrl.textContent = url;
+            
+            // Generate QR code
+            const qrcode = new QRCode(qrCodeContainer, {
+                text: url,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            // Show modal
+            const bsModal = new bootstrap.Modal(qrCodeModal);
+            bsModal.show();
+            
+            // Set up download button
+            downloadQrBtn.onclick = function() {
+                const canvas = qrCodeContainer.querySelector('canvas');
+                const image = canvas.toDataURL("image/png");
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = `qrcode-${url.replace(/[^a-z0-9]/gi, '-')}.png`;
+                link.click();
+            };
+        });
+    });
+</script>
+{% endblock %}

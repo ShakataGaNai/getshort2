@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0 rounded-lg">
+            <div class="card-header bg-primary text-white">
+                <h1 class="text-center my-3">Welcome to GetShort URL Shortener</h1>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <p class="lead">GetShort is a simple, powerful URL shortener service that allows you to create shortened URLs that are easy to share and track visitor analytics.</p>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-link-45deg display-4 text-primary"></i>
+                                <h3 class="mt-3">Simple URL Shortening</h3>
+                                <p>Create short URLs with just a few clicks</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-pencil-square display-4 text-primary"></i>
+                                <h3 class="mt-3">Custom URLs</h3>
+                                <p>Create memorable URLs for your brand or campaign</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-graph-up display-4 text-primary"></i>
+                                <h3 class="mt-3">Analytics</h3>
+                                <p>Track visitor data including browser, device type, and location</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('admin.create_url') }}" class="btn btn-primary btn-lg">Create Short URL</a>
+                    {% else %}
+                        <a href="{{ url_for('auth.github_login') }}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-github"></i> Login with GitHub to Start
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
