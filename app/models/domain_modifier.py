@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from app import db
 
@@ -8,8 +8,8 @@ class DomainModifier(db.Model):
     domain = db.Column(db.String(255), nullable=False, index=True)
     include_subdomains = db.Column(db.Boolean, default=False)
     query_params = db.Column(db.Text, nullable=False)  # Stored as JSON string
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     active = db.Column(db.Boolean, default=True)
     
@@ -33,7 +33,9 @@ class DomainModifier(db.Model):
         # We need the current user, but we can't import it at the top level due to circular imports
         from flask_login import current_user
         if current_user and current_user.is_authenticated:
-            modifiers = DomainModifier.query.filter_by(active=True, user_id=current_user.id).all()
+            modifiers = db.session.execute(
+                db.select(DomainModifier).filter_by(active=True, user_id=current_user.id)
+            ).scalars().all()
         else:
             # If there's no logged-in user (e.g., in public redirect), don't apply modifiers
             return url

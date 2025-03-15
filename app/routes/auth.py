@@ -81,7 +81,9 @@ def github_callback():
         return redirect(url_for('main.index'))
     
     # Check if user exists, create if not
-    user = User.query.filter_by(github_id=user_data.get('id')).first()
+    user = db.session.execute(
+        db.select(User).filter_by(github_id=user_data.get('id'))
+    ).scalar_one_or_none()
     
     if not user:
         # Check if new user signups are allowed

@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, abort, current_app
+from app import db
 from app.models import ShortURL
 from app.utils.visitor_tracking import track_visit
 from app.utils.monitoring import redirect_counter
@@ -13,7 +14,9 @@ def index():
 @main_bp.route('/<short_code>')
 def redirect_to_url(short_code):
     """Redirect a user to the target URL based on the short code"""
-    short_url = ShortURL.query.filter_by(short_code=short_code).first()
+    short_url = db.session.execute(
+        db.select(ShortURL).filter_by(short_code=short_code)
+    ).scalar_one_or_none()
     
     if not short_url:
         # Log unsuccessful redirect attempt

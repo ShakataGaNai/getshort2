@@ -14,11 +14,17 @@ api_bp = Blueprint('api', __name__)
 def get_urls():
     """API endpoint to get all URLs for the current user"""
     try:
-        urls = ShortURL.query.filter_by(user_id=current_user.id).order_by(ShortURL.created_at.desc()).all()
+        urls = db.session.execute(
+            db.select(ShortURL)
+            .filter_by(user_id=current_user.id)
+            .order_by(ShortURL.created_at.desc())
+        ).scalars().all()
         
         result = []
         for url in urls:
-            visit_count = Visit.query.filter_by(short_url_id=url.id).count()
+            visit_count = db.session.scalar(
+                db.select(func.count()).select_from(Visit).filter_by(short_url_id=url.id)
+            )
             result.append({
                 'id': url.id,
                 'short_code': url.short_code,
@@ -85,7 +91,7 @@ def create_url():
 def update_url(url_id):
     """API endpoint to update a shortened URL"""
     try:
-        short_url = ShortURL.query.get_or_404(url_id)
+        short_url = db.get_or_404(ShortURL, url_id)
         
         # Make sure the URL belongs to the current user
         if short_url.user_id != current_user.id:
@@ -116,7 +122,7 @@ def update_url(url_id):
 def delete_url(url_id):
     """API endpoint to delete a shortened URL"""
     try:
-        short_url = ShortURL.query.get_or_404(url_id)
+        short_url = db.get_or_404(ShortURL, url_id)
         
         # Make sure the URL belongs to the current user
         if short_url.user_id != current_user.id:
@@ -137,7 +143,7 @@ def delete_url(url_id):
 def url_analytics(url_id):
     """API endpoint to get analytics for a specific URL"""
     try:
-        short_url = ShortURL.query.get_or_404(url_id)
+        short_url = db.get_or_404(ShortURL, url_id)
         
         # Make sure the URL belongs to the current user
         if short_url.user_id != current_user.id:
@@ -145,7 +151,9 @@ def url_analytics(url_id):
             return jsonify(error='You do not have permission to view analytics for this URL'), 403
         
         # Get visit count
-        visit_count = Visit.query.filter_by(short_url_id=url_id).count()
+        visit_count = db.session.scalar(
+            db.select(func.count()).select_from(Visit).filter_by(short_url_id=url_id)
+        )
         
         # Get visit statistics
         browser_stats = db.session.query(
@@ -181,7 +189,11 @@ def url_analytics(url_id):
 def get_domain_modifiers():
     """API endpoint to get all domain modifiers for the current user"""
     try:
-        modifiers = DomainModifier.query.filter_by(user_id=current_user.id).order_by(DomainModifier.created_at.desc()).all()
+        modifiers = db.session.execute(
+            db.select(DomainModifier)
+            .filter_by(user_id=current_user.id)
+            .order_by(DomainModifier.created_at.desc())
+        ).scalars().all()
         
         result = []
         for modifier in modifiers:
@@ -258,7 +270,7 @@ def create_domain_modifier():
 def update_domain_modifier(modifier_id):
     """API endpoint to update a domain modifier"""
     try:
-        modifier = DomainModifier.query.get_or_404(modifier_id)
+        modifier = db.get_or_404(DomainModifier, modifier_id)
         
         # Make sure the modifier belongs to the current user
         if modifier.user_id != current_user.id:
@@ -308,7 +320,7 @@ def update_domain_modifier(modifier_id):
 def delete_domain_modifier(modifier_id):
     """API endpoint to delete a domain modifier"""
     try:
-        modifier = DomainModifier.query.get_or_404(modifier_id)
+        modifier = db.get_or_404(DomainModifier, modifier_id)
         
         # Make sure the modifier belongs to the current user
         if modifier.user_id != current_user.id:

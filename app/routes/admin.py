@@ -13,12 +13,18 @@ admin_bp = Blueprint('admin', __name__)
 def dashboard():
     """Admin dashboard showing user's shortened URLs"""
     # Get user's short URLs
-    short_urls = ShortURL.query.filter_by(user_id=current_user.id).order_by(ShortURL.created_at.desc()).all()
+    short_urls = db.session.execute(
+        db.select(ShortURL)
+        .filter_by(user_id=current_user.id)
+        .order_by(ShortURL.created_at.desc())
+    ).scalars().all()
     
     # For each URL, count the number of visits
     urls_with_stats = []
     for url in short_urls:
-        visit_count = Visit.query.filter_by(short_url_id=url.id).count()
+        visit_count = db.session.scalar(
+            db.select(func.count()).select_from(Visit).filter_by(short_url_id=url.id)
+        )
         urls_with_stats.append({
             'url': url,
             'visit_count': visit_count
@@ -61,7 +67,7 @@ def create_url():
 @login_required
 def edit_url(url_id):
     """Edit a shortened URL"""
-    short_url = ShortURL.query.get_or_404(url_id)
+    short_url = db.get_or_404(ShortURL, url_id)
     
     # Make sure the URL belongs to the current user
     if short_url.user_id != current_user.id:
@@ -90,7 +96,7 @@ def edit_url(url_id):
 @login_required
 def delete_url(url_id):
     """Delete a shortened URL"""
-    short_url = ShortURL.query.get_or_404(url_id)
+    short_url = db.get_or_404(ShortURL, url_id)
     
     # Make sure the URL belongs to the current user
     if short_url.user_id != current_user.id:
@@ -107,7 +113,7 @@ def delete_url(url_id):
 @login_required
 def url_analytics(url_id):
     """View analytics for a specific URL"""
-    short_url = ShortURL.query.get_or_404(url_id)
+    short_url = db.get_or_404(ShortURL, url_id)
     
     # Make sure the URL belongs to the current user
     if short_url.user_id != current_user.id:
@@ -115,7 +121,11 @@ def url_analytics(url_id):
         return redirect(url_for('admin.dashboard'))
     
     # Get all visits for this URL
-    visits = Visit.query.filter_by(short_url_id=url_id).order_by(Visit.timestamp.desc()).all()
+    visits = db.session.execute(
+        db.select(Visit)
+        .filter_by(short_url_id=url_id)
+        .order_by(Visit.timestamp.desc())
+    ).scalars().all()
     
     # Get visit statistics
     browser_stats = db.session.query(
@@ -142,7 +152,10 @@ def url_analytics(url_id):
 def user_analytics():
     """View analytics for all user's URLs"""
     # Get all user's URLs
-    short_urls = ShortURL.query.filter_by(user_id=current_user.id).all()
+    short_urls = db.session.execute(
+        db.select(ShortURL)
+        .filter_by(user_id=current_user.id)
+    ).scalars().all()
     url_ids = [url.id for url in short_urls]
     
     if not url_ids:
@@ -189,7 +202,11 @@ def user_analytics():
 @login_required
 def domain_modifiers():
     """View all domain modifiers"""
-    modifiers = DomainModifier.query.filter_by(user_id=current_user.id).order_by(DomainModifier.created_at.desc()).all()
+    modifiers = db.session.execute(
+        db.select(DomainModifier)
+        .filter_by(user_id=current_user.id)
+        .order_by(DomainModifier.created_at.desc())
+    ).scalars().all()
     
     # Prepare the modifiers by parsing the JSON query_params
     parsed_modifiers = []
@@ -256,7 +273,7 @@ def create_domain_modifier():
 @login_required
 def edit_domain_modifier(modifier_id):
     """Edit a domain modifier"""
-    modifier = DomainModifier.query.get_or_404(modifier_id)
+    modifier = db.get_or_404(DomainModifier, modifier_id)
     
     # Make sure the modifier belongs to the current user
     if modifier.user_id != current_user.id:
@@ -309,7 +326,7 @@ def edit_domain_modifier(modifier_id):
 @login_required
 def delete_domain_modifier(modifier_id):
     """Delete a domain modifier"""
-    modifier = DomainModifier.query.get_or_404(modifier_id)
+    modifier = db.get_or_404(DomainModifier, modifier_id)
     
     # Make sure the modifier belongs to the current user
     if modifier.user_id != current_user.id:

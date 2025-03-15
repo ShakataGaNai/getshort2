@@ -7,11 +7,11 @@ def test_index_route(client):
     assert response.status_code == 200
     assert b'GetShort URL Shortener' in response.data
 
-def test_redirect_route(client, app):
+def test_redirect_route(client, app, test_url):
     """Test the URL redirection functionality."""
     with app.test_request_context():
         # Test with a valid short code
-        response = client.get('/test123')
+        response = client.get(f'/{test_url.short_code}')
         assert response.status_code == 302
         assert response.location == 'https://example.com'
         

@@ -4,10 +4,6 @@ from prometheus_flask_exporter import PrometheusMetrics, Counter, Histogram
 from flask import Blueprint, current_app, jsonify, g, request
 from sqlalchemy import text
 
-# Create monitoring blueprints
-health_bp = Blueprint('health', __name__, url_prefix='/health')
-metrics_bp = Blueprint('metrics', __name__)
-
 # Initialize Prometheus metrics
 metrics = PrometheusMetrics.for_app_factory()
 
@@ -30,22 +26,11 @@ request_latency = Histogram(
     ['endpoint']
 )
 
-# Define latency monitoring for requests
-@metrics_bp.before_request
-def before_request():
-    g.start_time = time.time()
-
-@metrics_bp.after_request
-def after_request(response):
-    if hasattr(g, 'start_time'):
-        request_duration = time.time() - g.start_time
-        endpoint = request.endpoint or 'unknown'
-        request_latency.labels(endpoint=endpoint).observe(request_duration)
-    return response
-
-def init_health_check(app, db):
-    """Initialize the health check endpoints"""
-    # Register the health check endpoint
+def create_health_blueprint(db):
+    """Create a health check blueprint that can be registered with the app"""
+    health_bp = Blueprint('health', __name__, url_prefix='/health')
+    
+    # Health check endpoint
     @health_bp.route('/')
     def health_check():
         try:
@@ -74,7 +59,7 @@ def init_health_check(app, db):
         status_code = 200 if db_status else 500
         return jsonify(health_status), status_code
 
-    # Register the readiness endpoint
+    # Readiness endpoint
     @health_bp.route('/ready')
     def readiness():
         try:
@@ -85,14 +70,42 @@ def init_health_check(app, db):
         except Exception as e:
             return jsonify({"status": "not ready", "reason": str(e)}), 503
 
-    # Register the liveness endpoint
+    # Liveness endpoint
     @health_bp.route('/live')
     def liveness():
         return jsonify({"status": "alive"})
+        
+    return health_bp
 
-    # Register the blueprint with the app
-    app.register_blueprint(health_bp)
-    app.register_blueprint(metrics_bp)
+def create_metrics_blueprint():
+    """Create a metrics blueprint that can be registered with the app"""
+    metrics_bp = Blueprint('metrics', __name__)
+    
+    # Define latency monitoring for requests
+    @metrics_bp.before_request
+    def before_request():
+        g.start_time = time.time()
+
+    @metrics_bp.after_request
+    def after_request(response):
+        if hasattr(g, 'start_time'):
+            request_duration = time.time() - g.start_time
+            endpoint = request.endpoint or 'unknown'
+            request_latency.labels(endpoint=endpoint).observe(request_duration)
+        return response
+        
+    return metrics_bp
+
+def init_health_check(app, db):
+    """Initialize the health check endpoints"""
+    # Only register blueprints if they haven't been registered already
+    if 'health.health_check' not in app.view_functions:
+        health_bp = create_health_blueprint(db)
+        app.register_blueprint(health_bp)
+    
+    if 'metrics.before_request' not in app.view_functions:
+        metrics_bp = create_metrics_blueprint()
+        app.register_blueprint(metrics_bp)
 
     # Initialize the metrics with the app
     metrics.init_app(app)

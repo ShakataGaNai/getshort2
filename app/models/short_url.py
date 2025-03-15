@@ -1,6 +1,6 @@
 import random
 import string
-from datetime import datetime
+from datetime import datetime, UTC
 from app import db
 
 def generate_short_code(length=6):
@@ -12,7 +12,7 @@ class ShortURL(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     short_code = db.Column(db.String(50), unique=True, nullable=False, index=True)
     target_url = db.Column(db.String(2048), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     apply_modifiers = db.Column(db.Boolean, default=True)
     
@@ -34,7 +34,7 @@ class ShortURL(db.Model):
         """Create a new short URL with either a custom code or a unique generated one"""
         if custom_code:
             # Check if custom code already exists
-            existing = cls.query.filter_by(short_code=custom_code).first()
+            existing = db.session.execute(db.select(cls).filter_by(short_code=custom_code)).scalar_one_or_none()
             if existing:
                 return None, "This short code is already in use"
             
@@ -43,7 +43,7 @@ class ShortURL(db.Model):
             # Generate a unique short code
             while True:
                 short_code = generate_short_code()
-                if not cls.query.filter_by(short_code=short_code).first():
+                if not db.session.execute(db.select(cls).filter_by(short_code=short_code)).first():
                     break
         
         # Create new short URL
