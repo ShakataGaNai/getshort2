@@ -13,6 +13,7 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
 - **Metrics Collection**: Prometheus-compatible metrics for all operations
 - **Operational Dashboards**: Pre-configured Grafana dashboards
 - **Database Migrations**: Automated migrations support in containerized environments
+- **Domain Modifiers**: Automatically append query parameters (e.g., referral codes) to specific domains
 - **Containerized Deployment**: Docker and Kubernetes support
 
 ## Tech Stack
@@ -46,7 +47,17 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
    pip install -r requirements.txt
    ```
 
-4. Set up environment variables:
+4. Set up GitHub OAuth:
+   - Go to [GitHub Developer Settings](https://github.com/settings/developers)
+   - Click on "New OAuth App"
+   - Fill in the application details:
+     - **Application name**: GetShort URL Shortener
+     - **Homepage URL**: http://localhost:5000
+     - **Application description**: A URL shortener service with analytics tracking
+     - **Authorization callback URL**: http://localhost:5000/auth/github/callback
+   - After registration, you'll receive a `Client ID` and can generate a `Client Secret`
+
+5. Set up environment variables:
    Create a `.env` file in the project root and add:
    ```
    SECRET_KEY=your-secret-key
@@ -55,7 +66,7 @@ GetShort is a simple, powerful URL shortener service that allows you to create s
    # Optional: GEOIP_DB_PATH=path/to/your/GeoLite2-City.mmdb
    ```
 
-5. Run the application:
+6. Run the application:
    ```bash
    python run.py
    ```
@@ -204,6 +215,30 @@ The included Grafana setup comes with a pre-configured dashboard that visualizes
 - Request latency percentiles by endpoint
 - Total redirect count statistics
 
+## Domain Modifiers
+
+GetShort allows you to automatically append query parameters to URLs from specific domains. This is useful for:
+
+- Adding affiliate or referral codes to e-commerce sites
+- Appending tracking parameters to marketing URLs
+- Adding campaign identifiers to analytics tools
+
+To use domain modifiers:
+
+1. Navigate to "Domain Modifiers" in the admin interface
+2. Click "Create New Modifier"
+3. Enter the domain (e.g., "amazon.com")
+4. Specify whether to include subdomains
+5. Add the query parameters to append (e.g., "tag=myrefid")
+6. Save the modifier
+
+When users visit a shortened URL with modifiers enabled, the system will:
+1. Check if the target URL matches any of your domain patterns
+2. Automatically append your query parameters
+3. Preserve any existing query parameters in the original URL
+
+You can enable or disable domain modifiers for individual shortened URLs.
+
 ## Database Migrations
 
 GetShort uses Flask-Migrate (powered by Alembic) to handle database schema migrations in a containerized environment.
@@ -307,6 +342,19 @@ flask db current
 - A Kubernetes cluster (Minikube, Docker Desktop Kubernetes, GKE, EKS, etc.)
 - `kubectl` installed and configured to connect to your cluster
 - Optionally: Helm for easier deployments
+
+### GitHub OAuth for Production Deployment
+
+When deploying to production with Kubernetes:
+
+1. Update your GitHub OAuth application settings:
+   - Go to [GitHub Developer Settings](https://github.com/settings/developers)
+   - Select your GetShort OAuth App
+   - Update the **Homepage URL** to your production domain (e.g., https://getshort.example.com)
+   - Update the **Authorization callback URL** to include your production domain 
+     (e.g., https://getshort.example.com/auth/github/callback)
+
+2. Update your Kubernetes secrets with the production OAuth credentials
 
 ### Testing with Minikube
 
@@ -473,7 +521,8 @@ Content-Type: application/json
 
 {
   "target_url": "https://example.com",
-  "custom_code": "optional-custom-code"
+  "custom_code": "optional-custom-code",
+  "apply_modifiers": true
 }
 ```
 
@@ -487,6 +536,40 @@ GET /api/urls/{url_id}/analytics
 
 ```
 DELETE /api/urls/{url_id}
+```
+
+### Domain Modifier APIs
+
+```
+# List domain modifiers
+GET /api/domain-modifiers
+
+# Create a domain modifier
+POST /api/domain-modifiers
+Content-Type: application/json
+{
+  "domain": "amazon.com",
+  "include_subdomains": true,
+  "query_params": {
+    "tag": "myrefcode"
+  }
+}
+
+# Update a domain modifier
+PATCH /api/domain-modifiers/{modifier_id}
+
+# Delete a domain modifier
+DELETE /api/domain-modifiers/{modifier_id}
+
+# Test a domain modifier
+POST /api/domain-modifiers/test
+Content-Type: application/json
+{
+  "url": "https://amazon.com/product/12345",
+  "query_params": {
+    "tag": "myrefcode"
+  }
+}
 ```
 
 ## License

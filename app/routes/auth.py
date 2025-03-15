@@ -84,6 +84,13 @@ def github_callback():
     user = User.query.filter_by(github_id=user_data.get('id')).first()
     
     if not user:
+        # Check if new user signups are allowed
+        allow_signups = os.environ.get('ALLOW_SIGNUPS', 'true').lower() == 'true'
+        
+        if not allow_signups:
+            flash('New user registration is currently disabled.', 'error')
+            return redirect(url_for('main.index'))
+            
         user = User(
             username=user_data.get('login'),
             email=primary_email,

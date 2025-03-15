@@ -30,7 +30,14 @@ class DomainModifier(db.Model):
             return url  # No domain to match
         
         # Find matching domain modifiers
-        modifiers = DomainModifier.query.filter_by(active=True).all()
+        # We need the current user, but we can't import it at the top level due to circular imports
+        from flask_login import current_user
+        if current_user and current_user.is_authenticated:
+            modifiers = DomainModifier.query.filter_by(active=True, user_id=current_user.id).all()
+        else:
+            # If there's no logged-in user (e.g., in public redirect), don't apply modifiers
+            return url
+            
         applicable_modifiers = []
         
         for modifier in modifiers:

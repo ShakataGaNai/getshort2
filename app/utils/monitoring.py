@@ -1,5 +1,5 @@
 import time
-from healthcheck import HealthCheck
+# from healthcheck import HealthCheck  # Commenting out due to compatibility issues
 from prometheus_flask_exporter import PrometheusMetrics, Counter, Histogram
 from flask import Blueprint, current_app, jsonify, g, request
 from sqlalchemy import text
@@ -45,39 +45,45 @@ def after_request(response):
 
 def init_health_check(app, db):
     """Initialize the health check endpoints"""
-    health = HealthCheck()
-
-    # Add check for database connection
-    def db_check():
-        try:
-            # Execute a simple query
-            db.session.execute(text('SELECT 1'))
-            db.session.commit()
-            return True, "Database connection OK"
-        except Exception as e:
-            return False, str(e)
-
-    # Add check for app status
-    def app_status():
-        return True, "Application is running"
-
-    # Add the checks to the health check instance
-    health.add_check(db_check)
-    health.add_check(app_status)
-
     # Register the health check endpoint
     @health_bp.route('/')
     def health_check():
-        return health.run()
+        try:
+            # Execute a simple database query
+            db.session.execute(text('SELECT 1'))
+            db.session.commit()
+            db_status = True
+        except Exception as e:
+            db_status = False
+            db_error = str(e)
+        
+        health_status = {
+            "status": "healthy" if db_status else "unhealthy",
+            "checks": {
+                "database": {
+                    "status": "ok" if db_status else "error",
+                    "message": "Database connection OK" if db_status else db_error
+                },
+                "app": {
+                    "status": "ok",
+                    "message": "Application is running"
+                }
+            }
+        }
+        
+        status_code = 200 if db_status else 500
+        return jsonify(health_status), status_code
 
     # Register the readiness endpoint
     @health_bp.route('/ready')
     def readiness():
-        # Add additional checks for readiness if needed
-        checks = health.run()
-        if checks[0] != 200:
-            return jsonify({"status": "not ready"}), 503
-        return jsonify({"status": "ready"})
+        try:
+            # Check if the database is accessible
+            db.session.execute(text('SELECT 1'))
+            db.session.commit()
+            return jsonify({"status": "ready"}), 200
+        except Exception as e:
+            return jsonify({"status": "not ready", "reason": str(e)}), 503
 
     # Register the liveness endpoint
     @health_bp.route('/live')
@@ -91,4 +97,4 @@ def init_health_check(app, db):
     # Initialize the metrics with the app
     metrics.init_app(app)
 
-    return health
+    return app

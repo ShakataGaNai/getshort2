@@ -24,6 +24,9 @@ var/
 venv/
 ENV/
 env/
+.venv/
+.python-version
+pyenv.cfg
 
 # Flask
 instance/
@@ -36,6 +39,8 @@ instance/
 
 # Environment Variables
 .env
+.env.*
+.flaskenv
 
 # GeoIP Database
 *.mmdb

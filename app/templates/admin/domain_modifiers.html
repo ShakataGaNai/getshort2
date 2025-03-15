@@ -48,8 +48,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% set query_params = modifier.query_params|tojson|fromjson %}
-                                        {% for key, value in query_params.items() %}
+                                        {% for key, value in modifier.parsed_query_params.items() %}
                                             <span class="badge bg-info text-dark">{{ key }}={{ value }}</span>
                                         {% endfor %}
                                     </td>

@@ -1,4 +1,5 @@
 import os
+import json
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -39,7 +40,7 @@ def create_app():
     
     # Initialize login manager
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = 'auth.github_login'  # We use GitHub OAuth for login
     
     # Register blueprints
     from app.routes.main import main_bp
@@ -59,5 +60,10 @@ def create_app():
     # Create database tables if they don't exist
     with app.app_context():
         db.create_all()
+    
+    # Add custom Jinja filters
+    @app.template_filter('fromjson')
+    def fromjson_filter(value):
+        return json.loads(value)
     
     return app

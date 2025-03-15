@@ -14,21 +14,27 @@
                     <div class="mb-3">
                         <label class="form-label">Short URL</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" value="{{ request.host_url }}{{ url.short_code }}" readonly>
+                            <input type="text" class="form-control bg-light" value="{{ request.host_url }}{{ url.short_code }}" readonly>
                             <button class="btn btn-outline-secondary copy-btn" 
                                     data-clipboard-text="{{ request.host_url }}{{ url.short_code }}" type="button">
                                 <i class="bi bi-clipboard"></i>
                             </button>
+                        </div>
+                        <div class="form-text">
+                            The short URL cannot be changed after creation.
                         </div>
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Target URL</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" value="{{ url.target_url }}" readonly>
+                            <input type="text" class="form-control" id="target_url" name="target_url" value="{{ url.target_url }}">
                             <a href="{{ url.target_url }}" class="btn btn-outline-primary" target="_blank">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
+                        </div>
+                        <div class="form-text">
+                            Enter the full URL including http:// or https://
                         </div>
                     </div>
                     
@@ -60,8 +66,8 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label class="form-label">Original Target URL:</label>
-                    <input type="text" class="form-control" value="{{ url.target_url }}" readonly>
+                    <label class="form-label">Target URL:</label>
+                    <input type="text" class="form-control" id="preview_target_url" value="{{ url.target_url }}" readonly>
                 </div>
                 
                 <div id="modifiedUrlContainer" {% if not url.apply_modifiers %}style="display: none;"{% endif %}>
@@ -106,6 +112,13 @@
     const applyModifiersCheckbox = document.getElementById('apply_modifiers');
     const modifiedUrlContainer = document.getElementById('modifiedUrlContainer');
     const noModifiersMessage = document.getElementById('noModifiersMessage');
+    const targetUrlInput = document.getElementById('target_url');
+    const previewTargetUrl = document.getElementById('preview_target_url');
+    
+    // Update preview when target URL changes
+    targetUrlInput.addEventListener('input', function() {
+        previewTargetUrl.value = this.value;
+    });
     
     applyModifiersCheckbox.addEventListener('change', function() {
         if (this.checked) {

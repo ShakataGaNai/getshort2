@@ -69,8 +69,15 @@ def edit_url(url_id):
         return redirect(url_for('admin.dashboard'))
     
     if request.method == 'POST':
+        target_url = request.form.get('target_url')
         apply_modifiers = request.form.get('apply_modifiers', 'off') == 'on'
         
+        # Validate target URL
+        if not validators.url(target_url):
+            flash('Invalid URL. Please enter a valid URL including http:// or https://', 'error')
+            return redirect(url_for('admin.edit_url', url_id=url_id))
+        
+        short_url.target_url = target_url
         short_url.apply_modifiers = apply_modifiers
         db.session.commit()
         
@@ -162,11 +169,20 @@ def user_analytics():
         func.count(Visit.id).desc()
     ).limit(10).all()
     
+    # Process the top_urls to include rank without using enumerate in template
+    processed_top_urls = []
+    for i, (url, visit_count) in enumerate(top_urls):
+        processed_top_urls.append({
+            'rank': i + 1,
+            'url': url,
+            'visit_count': visit_count
+        })
+    
     return render_template('admin/user_analytics.html',
                            browser_stats=browser_stats,
                            device_stats=device_stats,
                            country_stats=country_stats,
-                           top_urls=top_urls)
+                           top_urls=processed_top_urls)
 
 # Domain Modifiers Management
 @admin_bp.route('/domain-modifiers')
@@ -174,7 +190,18 @@ def user_analytics():
 def domain_modifiers():
     """View all domain modifiers"""
     modifiers = DomainModifier.query.filter_by(user_id=current_user.id).order_by(DomainModifier.created_at.desc()).all()
-    return render_template('admin/domain_modifiers.html', modifiers=modifiers)
+    
+    # Prepare the modifiers by parsing the JSON query_params
+    parsed_modifiers = []
+    for modifier in modifiers:
+        mod_dict = modifier.__dict__.copy()
+        try:
+            mod_dict['parsed_query_params'] = json.loads(modifier.query_params)
+        except (json.JSONDecodeError, TypeError):
+            mod_dict['parsed_query_params'] = {}
+        parsed_modifiers.append(mod_dict)
+    
+    return render_template('admin/domain_modifiers.html', modifiers=parsed_modifiers)
 
 @admin_bp.route('/domain-modifiers/create', methods=['GET', 'POST'])
 @login_required
@@ -186,8 +213,13 @@ def create_domain_modifier():
         
         # Get all query parameters
         query_params = {}
-        param_keys = request.form.getlist('param_key')
-        param_values = request.form.getlist('param_value')
+        param_keys = request.form.getlist('param_key[]')
+        param_values = request.form.getlist('param_value[]')
+        
+        # Print debug info
+        print(f"Form data: {request.form}")
+        print(f"Param keys: {param_keys}")
+        print(f"Param values: {param_values}")
         
         for i in range(len(param_keys)):
             if i < len(param_values) and param_keys[i].strip():
@@ -238,8 +270,8 @@ def edit_domain_modifier(modifier_id):
         
         # Get all query parameters
         query_params = {}
-        param_keys = request.form.getlist('param_key')
-        param_values = request.form.getlist('param_value')
+        param_keys = request.form.getlist('param_key[]')
+        param_values = request.form.getlist('param_value[]')
         
         for i in range(len(param_keys)):
             if i < len(param_values) and param_keys[i].strip():
@@ -299,8 +331,8 @@ def test_domain_modifier():
         
         # Get all query parameters
         query_params = {}
-        param_keys = request.form.getlist('param_key')
-        param_values = request.form.getlist('param_value')
+        param_keys = request.form.getlist('param_key[]')
+        param_values = request.form.getlist('param_value[]')
         
         for i in range(len(param_keys)):
             if i < len(param_values) and param_keys[i].strip():

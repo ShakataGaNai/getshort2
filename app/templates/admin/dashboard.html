@@ -50,7 +50,11 @@
                                         <span class="badge bg-info">{{ item.visit_count }}</span>
                                     </td>
                                     <td>
-                                        <div class="btn-group">
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <a href="{{ url_for('admin.edit_url', url_id=item.url.id) }}" 
+                                               class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </a>
                                             <a href="{{ url_for('admin.url_analytics', url_id=item.url.id) }}" 
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-bar-chart"></i> Analytics
@@ -59,17 +63,15 @@
                                                class="btn btn-sm btn-outline-success" target="_blank">
                                                 <i class="bi bi-box-arrow-up-right"></i> Visit
                                             </a>
+                                            <button class="btn btn-sm btn-outline-secondary qr-btn" 
+                                                data-url="{{ request.host_url }}{{ item.url.short_code }}">
+                                                <i class="bi bi-qr-code"></i> QR Code
+                                            </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger"
                                                     data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.url.id }}">
                                                 <i class="bi bi-trash"></i> Delete
                                             </button>
                                         </div>
-
-                                        <!-- QR Code button -->
-                                        <button class="btn btn-sm btn-outline-secondary mt-1 qr-btn" 
-                                                data-url="{{ request.host_url }}{{ item.url.short_code }}">
-                                            <i class="bi bi-qr-code"></i> QR Code
-                                        </button>
                                         
                                         <!-- Delete Modal -->
                                         <div class="modal fade" id="deleteModal{{ item.url.id }}" tabindex="-1">
@@ -134,7 +136,7 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.8/dist/clipboard.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode.js@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kjua@0.9.0/dist/kjua.min.js"></script>
 <script>
     // Initialize clipboard.js for copy buttons
     const clipboard = new ClipboardJS('.copy-btn');
@@ -155,42 +157,63 @@
         e.clearSelection();
     });
     
-    // QR Code generation
-    const qrBtns = document.querySelectorAll('.qr-btn');
-    const qrCodeModal = document.getElementById('qrCodeModal');
-    const qrCodeContainer = document.getElementById('qrcode');
-    const qrCodeUrl = document.getElementById('qrCodeUrl');
-    const downloadQrBtn = document.getElementById('downloadQrCode');
-    
-    qrBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const url = this.getAttribute('data-url');
-            qrCodeContainer.innerHTML = '';
-            qrCodeUrl.textContent = url;
-            
-            // Generate QR code
-            const qrcode = new QRCode(qrCodeContainer, {
-                text: url,
-                width: 200,
-                height: 200,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+    // QR Code generation using kjua
+    document.addEventListener('DOMContentLoaded', function() {
+        const qrBtns = document.querySelectorAll('.qr-btn');
+        const qrCodeModal = document.getElementById('qrCodeModal');
+        const qrCodeContainer = document.getElementById('qrcode');
+        const qrCodeUrl = document.getElementById('qrCodeUrl');
+        const downloadQrBtn = document.getElementById('downloadQrCode');
+        
+        // Check if kjua is loaded
+        if (typeof kjua !== 'function') {
+            console.error("kjua library not loaded properly");
+            return;
+        }
+        
+        qrBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                console.log("QR code button clicked for URL:", url);
+                qrCodeContainer.innerHTML = '';
+                qrCodeUrl.textContent = url;
+                
+                try {
+                    // Generate QR code with kjua
+                    const qrCode = kjua({
+                        text: url,
+                        render: 'canvas',
+                        size: 300,
+                        rounded: 100,
+                        quiet: 1,
+                        fill: '#000',
+                        back: '#fff'
+                    });
+                    
+                    // Add the QR code to the container
+                    qrCodeContainer.appendChild(qrCode);
+                    
+                    // Show modal
+                    const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+                    modal.show();
+                    
+                    // Set up download button
+                    downloadQrBtn.onclick = function() {
+                        const canvas = qrCodeContainer.querySelector('canvas');
+                        if (canvas) {
+                            const image = canvas.toDataURL("image/png");
+                            const link = document.createElement('a');
+                            link.href = image;
+                            link.download = `qrcode-${url.replace(/[^a-z0-9]/gi, '-')}.png`;
+                            link.click();
+                        } else {
+                            console.error("Canvas not found in QR code container");
+                        }
+                    };
+                } catch (error) {
+                    console.error("Error generating QR code:", error);
+                }
             });
-            
-            // Show modal
-            const bsModal = new bootstrap.Modal(qrCodeModal);
-            bsModal.show();
-            
-            // Set up download button
-            downloadQrBtn.onclick = function() {
-                const canvas = qrCodeContainer.querySelector('canvas');
-                const image = canvas.toDataURL("image/png");
-                const link = document.createElement('a');
-                link.href = image;
-                link.download = `qrcode-${url.replace(/[^a-z0-9]/gi, '-')}.png`;
-                link.click();
-            };
         });
     });
 </script>

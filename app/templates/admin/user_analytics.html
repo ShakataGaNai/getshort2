@@ -16,7 +16,7 @@
 
 <div class="row mb-4">
     <div class="col-md-4">
-        <div class="card shadow h-100">
+        <div class="card shadow chart-card">
             <div class="card-header">
                 <h3 class="h5 mb-0">Browser Stats</h3>
             </div>
@@ -26,7 +26,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow h-100">
+        <div class="card shadow chart-card">
             <div class="card-header">
                 <h3 class="h5 mb-0">Device Type</h3>
             </div>
@@ -36,7 +36,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow h-100">
+        <div class="card shadow chart-card">
             <div class="card-header">
                 <h3 class="h5 mb-0">Country Distribution</h3>
             </div>
@@ -67,26 +67,26 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for index, (url, visit_count) in enumerate(top_urls) %}
+                                {% for item in top_urls %}
                                     <tr>
-                                        <td>{{ index + 1 }}</td>
+                                        <td>{{ item.rank }}</td>
                                         <td>
-                                            <a href="{{ url_for('main.redirect_to_url', short_code=url.short_code) }}" target="_blank">
-                                                {{ request.host_url }}{{ url.short_code }}
+                                            <a href="{{ url_for('main.redirect_to_url', short_code=item.url.short_code) }}" target="_blank">
+                                                {{ request.host_url }}{{ item.url.short_code }}
                                             </a>
                                         </td>
                                         <td>
                                             <div class="text-truncate" style="max-width: 300px;">
-                                                <a href="{{ url.target_url }}" target="_blank">
-                                                    {{ url.target_url }}
+                                                <a href="{{ item.url.target_url }}" target="_blank">
+                                                    {{ item.url.target_url }}
                                                 </a>
                                             </div>
                                         </td>
                                         <td>
-                                            <span class="badge bg-success">{{ visit_count }}</span>
+                                            <span class="badge bg-success">{{ item.visit_count }}</span>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('admin.url_analytics', url_id=url.id) }}" 
+                                            <a href="{{ url_for('admin.url_analytics', url_id=item.url.id) }}" 
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-bar-chart"></i> Detailed Analytics
                                             </a>
@@ -184,10 +184,11 @@
     // Chart options
     const options = {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
         plugins: {
             legend: {
-                position: 'bottom'
+                position: 'bottom',
+                display: true
             }
         }
     };
@@ -210,16 +211,9 @@
         
         const countryCtx = document.getElementById('countryChart').getContext('2d');
         new Chart(countryCtx, {
-            type: 'bar',
+            type: 'pie',
             data: countryData,
-            options: {
-                ...options,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
+            options: options
         });
     });
 </script>

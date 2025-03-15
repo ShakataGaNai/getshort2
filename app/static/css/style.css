@@ -106,3 +106,10 @@ canvas {
     text-overflow: ellipsis;
     display: inline-block;
 }
+
+/* Domain modifier card */
+.domain-modifier-form .card-body {
+    min-height: 650px;
+    overflow-y: auto;
+}
+
